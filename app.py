@@ -1,46 +1,51 @@
+# app.py
 from flask import Flask, request, jsonify
-import sqlite3
-
 app = Flask(__name__)
-app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-@app.route('/register', methods=["POST"])
-def register():
-    payload = request.get_json(force=True)
-    name = payload['name']
-    conn = sqlite3.connect('example.db')
-    c = conn.cursor()
-    c.execute('INSERT INTO records(name) VALUES(?)', (name,))
-    conn.commit()
-    conn.close()
-    resp = {'status':'OK'}
-    return jsonify(resp)
+@app.route('/getmsg/', methods=['GET'])
+def respond():
+    # Retrieve the name from url parameter
+    name = request.args.get("name", None)
 
-@app.route('/summary', methods=["GET"])
-def summary():
-    name = request.args.get('name')
-    conn = sqlite3.connect('example.db')
-    c = conn.cursor()
-    if name != None and name != '':
-        c.execute('SELECT * FROM records WHERE name=?', (name,))
+    # For debugging
+    print(f"got name {name}")
+
+    response = {}
+
+    # Check if user sent a name at all
+    if not name:
+        response["ERROR"] = "no name found, please send a name."
+    # Check if the user entered a number not a name
+    elif str(name).isdigit():
+        response["ERROR"] = "name can't be numeric."
+    # Now the user entered a valid name
     else:
-        c.execute('SELECT * FROM records')
-    records = c.fetchall()
-    results = []
-    for r in records:
-        results.append({'timestamp':r[1], 'name':r[2]})
-    conn.commit()
-    conn.close()
-    resp = {'status':'OK', 'results':results}
-    return jsonify(resp)
+        response["MESSAGE"] = f"Welcome {name} to our awesome platform!!"
+
+    # Return the response in json format
+    return jsonify(response)
+
+@app.route('/post/', methods=['POST'])
+def post_something():
+    param = request.form.get('name')
+    print(param)
+    # You can add the test cases you made in the previous function, but in our case here you are just testing the POST functionality
+    if param:
+        return jsonify({
+            "Message": f"Welcome {name} to our awesome platform!!",
+            # Add this option to distinct the POST request
+            "METHOD" : "POST"
+        })
+    else:
+        return jsonify({
+            "ERROR": "no name found, please send a name."
+        })
+
+# A welcome message to test our server
+@app.route('/')
+def index():
+    return "<h1>Welcome to our server !!</h1>"
 
 if __name__ == '__main__':
-    conn = sqlite3.connect('example.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS records
-             (_id INTEGER PRIMARY KEY AUTOINCREMENT,
-             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-             name TEXT NOT NULL)''')
-    conn.commit()
-    conn.close()
-    app.run(debug=True)
+    # Threaded option to enable multiple instances for multiple user access support
+    app.run(threaded=True, port=5000)
