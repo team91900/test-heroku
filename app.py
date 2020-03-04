@@ -1,51 +1,59 @@
-
 from flask import Flask, request, jsonify
+import os
+import psycopg2
+
 app = Flask(__name__)
+app.config["TEMPLATES_AUTO_RELOAD"] = True
 
-@app.route('/getmsg/', methods=['GET'])
-def respond():
-    # Retrieve the name from url parameter
-    name = request.args.get("name", None)
+@app.route('/AddData', methods=["POST"])
+def register():
+    payload = request.get_json(force=True)
+    temp = payload['temp']
+    humid = payload['humid']
+    DATABASE_URL = os.environ['DATABASE_URL']
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    # conn = sqlite3.connect('example.db')
+    c = conn.cursor()
+    # inset row of data
+    c.execute('INSERT INTO records(temp,humid) VALUES(%s,%s)', (temp,humid))
+    conn.commit()
+    conn.close()
+    resp = {'status':'OK'}
+    return jsonify(resp)
 
-    # For debugging
-    print(f"got name {name}")
-
-    response = {}
-
-    # Check if user sent a name at all
-    if not name:
-        response["ERROR"] = "no name found, please send a name."
-    # Check if the user entered a number not a name
-    elif str(name).isdigit():
-        response["ERROR"] = "name can't be numeric."
-    # Now the user entered a valid name
-    else:
-        response["MESSAGE"] = f"Welcome {name} to our awesome platform!!"
-
-    # Return the response in json format
-    return jsonify(response)
-
-@app.route('/post/', methods=['POST'])
-def post_something():
-    param = request.form.get('name')
-    print(param)
-    # You can add the test cases you made in the previous function, but in our case here you are just testing the POST functionality
-    if param:
-        return jsonify({
-            "Message": f"Welcome {name} to our awesome platform!!",
-            # Add this option to distinct the POST request
-            "METHOD" : "POST"
-        })
-    else:
-        return jsonify({
-            "ERROR": "no name found, please send a name."
-        })
-
-# A welcome message to test our server
-@app.route('/')
-def index():
-    return "<h1>Welcome to our server !!</h1>"
+@app.route('/summary', methods=["GET"])
+def summary():
+    temp = request.args.get('temp')
+    humid = request.args.get('humid')
+    DATABASE_URL = os.environ['DATABASE_URL']
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    #conn = sqlite3.connect('example.db')
+    c = conn.cursor()
+    # if name != None and name != '':
+    #     c.execute('SELECT * FROM records WHERE name=?', (name,))
+    # else:
+    c.execute('SELECT * FROM records')
+    records = c.fetchall()
+    results = []
+    for r in records:
+        results.append({'timestamp':r[1], 'temp':r[2] , 'humid':r[3]})
+    conn.commit()
+    conn.close()
+    resp = {'status':'OK', 'results':results}
+    return jsonify(resp)
 
 if __name__ == '__main__':
-    # Threaded option to enable multiple instances for multiple user access support
-    app.run(threaded=True, port=8000)
+
+    DATABASE_URL = os.environ['DATABASE_URL']
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+    #conn = sqlite3.connect('example.db') # connect to database
+    c = conn.cursor()   
+    # create table 
+    c.execute('''CREATE TABLE IF NOT EXISTS records
+             (_id SERIAL PRIMARY KEY,
+             TIMESTAMP timestamp without time zone DEFAULT now(),
+             temp INTEGER NOT NULL,
+             humid INTEGER NOT NULL)''')
+    conn.commit() # commit change
+    conn.close() # close connection
+    app.run(debug=True)
