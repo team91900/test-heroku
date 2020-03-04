@@ -51,7 +51,7 @@ if __name__ == '__main__':
     # create table 
     c.execute('''CREATE TABLE IF NOT EXISTS records
              (_id SERIAL PRIMARY KEY,
-             TIMESTAMP timestamp without time zone DEFAULT now(),
+             DATATIMESTAMP timestamp without time zone DEFAULT now(),
              temp INTEGER NOT NULL,
              humid INTEGER NOT NULL)''')
     conn.commit() # commit change
